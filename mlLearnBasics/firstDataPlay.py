@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import time
 from datetime import datetime
+from pickle import FALSE
 #data.nasdaq.com APIKEY:3UKWu_y1RsA6GCxUWTVC
 path = "C:/Users/axyzh/OneDrive/Desktop/intraQuarter"
 
@@ -17,12 +18,21 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                                  'stock_p_change',
                                  'NASDAQ',
                                  'nasdaq_p_change'])
-    nasdaq_df = pd.read_csv("nasdaq_2000-2015.csv")#data frame of nasdaq data from 2000-2015
+     #data frame of nasdaq data from 2000-2015
+    nasdaq_df = pd.read_csv("nasdaq_2000-2015.csv")
+    
     #print(nasdaq_df)
+    ticker_list = [] 
     
     for each_dir in stock_list[1:25]:
         each_file = os.listdir(each_dir)
         ticker = each_dir.split("\\")[1]
+        ticker_list.append(ticker)
+        print(ticker)
+        starting_stock_value = False 
+        starting_nasdaq_value = False 
+        
+        
         if len(each_file) > 0:
             for file in each_file:
                 date_stamp = datetime.strptime(file, "%Y%m%d%H%M%S.html")
@@ -35,7 +45,7 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                 try:
                     value = float(source.split(gather+':</td><td class="yfnc_tabledata1">')[-1][:10].split('</td>')[0])
                     #value = float(source.replace('\n','').split(gather + ':</td><td class="yfnc_tabledata1">')[1].split('</td>')[0])
-                    print(value)
+                    #print(value)
                     try:
                         nasdaq_date = datetime.fromtimestamp(unix_time).strftime('%Y-%m-%d')
                         #print(nasdaq_date)
@@ -51,17 +61,32 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                     ##APPEND IS DEPRECIATED NEED THIS TO GET RID OF WARNINGS
                     
                     stock_price = float(source.split('</small><big><b>')[1].split('</b></big>')[0])
-                    print("stock_price:", stock_price, "ticker", ticker)
+                    #print("stock_price:", stock_price, "ticker", ticker)
+                    
+                    if not starting_stock_value:
+                        starting_stock_value = stock_price
+                    
+                    if not starting_nasdaq_value:
+                        starting_nasdaq_value = nasdaq_value
+                    
+                         
+                    #stock_p_change = (stock_price - starting_stock_value)
+                    stock_p_change = ((stock_price - starting_stock_value) / starting_stock_value) * 100
+                    nasdaq_p_change= ((nasdaq_value - starting_nasdaq_value) / starting_nasdaq_value) * 100
+                    
                     df = df.append({'Date': date_stamp,
                                     'Unix':unix_time,
                                     'Ticker':ticker,
                                     'DE Ratio':value,
                                     'Price':stock_price,
-                                    'NASDAQ':nasdaq_value}, ignore_index = True) #change to CONCAT because append is depreciated concact is faster same supposedly
+                                    'stock_p_change': stock_p_change,
+                                    'NASDAQ':nasdaq_value,
+                                    'nasdaq_p_change':nasdaq_p_change}, ignore_index = True) #change to CONCAT because append is depreciated concact is faster same supposedly
                 except Exception as e:
                     pass
-            
                 #print(ticker+":", value)
+                
+    
     save = gather.replace(' ','').replace(')','').replace('(','').replace('/','')+('.csv')
     print(save)
     df.to_csv(save)#file with all the data from sources
