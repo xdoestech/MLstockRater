@@ -3,6 +3,15 @@ import os
 import time
 from datetime import datetime
 from pickle import FALSE
+
+from time import mktime
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import style
+style.use("dark_background")
+
+import re
+
 #data.nasdaq.com APIKEY:3UKWu_y1RsA6GCxUWTVC
 path = "C:/Users/axyzh/OneDrive/Desktop/intraQuarter"
 
@@ -17,7 +26,9 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                                  'Price',
                                  'stock_p_change',
                                  'NASDAQ',
-                                 'nasdaq_p_change'])
+                                 'nasdaq_p_change',
+                                 'Difference']) 
+    
      #data frame of nasdaq data from 2000-2015
     nasdaq_df = pd.read_csv("nasdaq_2000-2015.csv")
     
@@ -28,7 +39,7 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
         each_file = os.listdir(each_dir)
         ticker = each_dir.split("\\")[1]
         ticker_list.append(ticker)
-        print(ticker)
+        #print(ticker)
         starting_stock_value = False 
         starting_nasdaq_value = False 
         
@@ -43,7 +54,13 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                 source = open(full_file_path, 'r').read()
                 #print(source)
                 try:
-                    value = float(source.split(gather+':</td><td class="yfnc_tabledata1">')[-1][:10].split('</td>')[0])
+                    #deal with the errors
+                    try:
+                        value = float(source.split(gather+':</td><td class="yfnc_tabledata1">')[-1][:10].split('</td>')[0])
+                    except Exception as e:
+                        value = float(source.split(gather+':</td>\n<td class="yfnc_tabledata1">')[-1][:10].split('</td>')[0])
+                        print(str(e), ticker,file)
+                        #time.sleep(1)
                     #value = float(source.replace('\n','').split(gather + ':</td><td class="yfnc_tabledata1">')[1].split('</td>')[0])
                     #print(value)
                     try:
@@ -60,9 +77,20 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                     # run block of code and catch warnings
                     ##APPEND IS DEPRECIATED NEED THIS TO GET RID OF WARNINGS
                     
-                    stock_price = float(source.split('</small><big><b>')[1].split('</b></big>')[0])
-                    #print("stock_price:", stock_price, "ticker", ticker)
-                    
+                    try:
+                        stock_price = float(source.split('</small><big><b>')[1].split('</b></big>')[0])
+                    except Exception as e:
+                        try:
+                            print(str(e), ticker,file)
+                            stock_price = (source.split('</small><big><b>')[1].split('</b></big>')[0])
+                            stock_price = re.search(r'(\d{1,8}\.\d{1,8})',stock_price) #r from 1-8
+                            stock_price = float(stock_price.group(1))
+                            
+                            print(stock_price)
+                        except Exception as e:
+                            print(str(e))
+                            #time.sleep(15)
+                        #print("stock_price:", stock_price, "ticker", ticker
                     if not starting_stock_value:
                         starting_stock_value = stock_price
                     
@@ -81,11 +109,24 @@ def Key_Stats(gather="Total Debt/Equity (mrq)"):
                                     'Price':stock_price,
                                     'stock_p_change': stock_p_change,
                                     'NASDAQ':nasdaq_value,
-                                    'nasdaq_p_change':nasdaq_p_change}, ignore_index = True) #change to CONCAT because append is depreciated concact is faster same supposedly
+                                    'nasdaq_p_change':nasdaq_p_change,
+                                    'Difference':stock_p_change - nasdaq_p_change}, ignore_index = True) #change to CONCAT because append is depreciated concact is faster same supposedly
                 except Exception as e:
                     pass
                 #print(ticker+":", value)
                 
+    
+    for each_ticker in ticker_list:
+        try:
+            plot_df = df[(df['Ticker'] == each_ticker)]
+            plot_df = plot_df.set_index(['Date'])
+            
+            plot_df['Difference'].plot(label = each_ticker)
+            plt.legend()
+            
+        except:
+            pass
+    plt.show()
     
     save = gather.replace(' ','').replace(')','').replace('(','').replace('/','')+('.csv')
     print(save)
